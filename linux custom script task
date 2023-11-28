@@ -1,0 +1,140 @@
+#!/bin/bash
+
+# Function to display usage information
+display_usage() {
+    echo "Usage: internsctl <command> [options]"
+    echo "Commands:"
+    echo "  cpu getinfo             Get CPU information"
+    echo "  memory getinfo          Get Memory information"
+    echo "  user create <username>  Create a new user"
+    echo "  user list                List all regular users"
+    echo "  user list --sudo-only   List users with sudo permissions"
+    echo "  file getinfo <file-name> Get information about a file"
+    echo "Options for file getinfo:"
+    echo "  --size, -s              Print file size"
+    echo "  --permissions, -p       Print file permissions"
+    echo "  --owner, -o             Print file owner"
+    echo "  --last-modified, -m     Print last modified time"
+}
+
+# Function to get CPU information
+get_cpu_info() {
+    lscpu
+}
+
+# Function to get Memory information
+get_memory_info() {
+    free
+}
+
+# Function to create a new user
+create_user() {
+    if [ "$#" -eq 2 ]; then
+        sudo useradd -m "$2"
+        echo "User '$2' created successfully."
+    else
+        echo "Usage: internsctl user create <username>"
+        exit 1
+    fi
+}
+
+# Function to list users
+list_users() {
+    if [ "$#" -eq 2 ] && [ "$2" == "--sudo-only" ]; then
+        getent passwd | grep -E 'sudo|admin' | cut -d: -f1
+    else
+        getent passwd | cut -d: -f1
+    fi
+}
+
+# Function to get file information
+get_file_info() {
+    if [ "$#" -lt 3 ]; then
+        echo "Usage: internsctl file getinfo [options] <file-name>"
+        return 1
+    fi
+
+    file_name="$3"
+    file_info=$(stat --format="File: %n%nAccess: %A%nSize(B): %s%nOwner: %U%nModify: %y" "$file_name")
+
+    case "$1" in
+        --size|-s)
+            echo "$file_info" | grep -oP 'Size\(B\): \K\d+'
+            ;;
+        --permissions|-p)
+            echo "$file_info" | grep -oP 'Access: \K[^ ]+'
+            ;;
+        --owner|-o)
+            echo "$file_info" | grep -oP 'Owner: \K[^ ]+'
+            ;;
+        --last-modified|-m)
+            echo "$file_info" | grep -oP 'Modify: \K.*'
+            ;;
+        *)
+            echo "$file_info"
+            ;;
+    esac
+}
+
+# Main script logic
+case "$1" in
+    cpu)
+        shift
+        get_cpu_info "$@"
+        ;;
+    memory)
+        shift
+        get_memory_info "$@"
+        ;;
+    user)
+        shift
+        case "$1" in
+            create)
+                shift
+                create_user "$@"
+                ;;
+            list)
+                shift
+                list_users "$@"
+                ;;
+            *)
+                display_usage
+                ;;
+        esac
+        ;;
+    file)
+        shift
+        get_file_info "$@"
+        ;;
+    --help|-h)
+        display_usage
+        ;;
+    --version|-v)
+        echo "internsctl version v0.1.0"
+        ;;
+    *)
+        echo "Error: Unknown command '$1'."
+        display_usage
+        exit 1
+        ;;
+esac
+
+
+
+
+output:
+./internsctl.sh cpu getinfo
+./internsctl.sh user list
+
+
+expected output:
+File: hello.txt
+Access: -rw-r--r--
+Size(B): <size>
+Owner: <owner>
+Modify: <last modified time>
+
+
+
+get file size: ./internsctl.sh file getinfo --size hello.txt
+get file permission: ./internsctl.sh file getinfo --permissions hello.txt
